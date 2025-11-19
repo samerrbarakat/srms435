@@ -65,3 +65,7 @@ ON bookings (room_id, start_time, end_time);
 -- to get the reviews associated with a specifix room 
 CREATE INDEX IF NOT EXISTS idx_reviews_room_id
 ON reviews (room_id);
+
+INSERT INTO users (name, username, email, password_hash, role)
+VALUES ('Administrator', 'admin', 'admin@yourdomain.com', 'a1fe8f79a121256842e7aaef2ab1e339a553a74fe05834ca081259cf66ac5fb5', 'admin')
+ON CONFLICT (username) DO NOTHING;

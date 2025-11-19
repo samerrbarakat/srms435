@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16 # we start from a base image 
+    container_name: srms-db
+    environment:
+      POSTGRES_DB: srms_db
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: appsecret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - backend
+      # later on we will add the services for each service we have and relate them to their own docker files. 
+  users_service:
+    build:
+      context: ./users_service
+    container_name: users-service
+    environment:
+      DATABASE_URL: postgres://appuser:appsecret@db:5432/srms_db
+    ports:
+      - "5001:5000"
+    depends_on:
+      - db
+    networks:
+      - backend
+networks:
+  backend:
+
+
+volumes:
+  db_data:
