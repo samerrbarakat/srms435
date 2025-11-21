@@ -1,8 +1,12 @@
 from unittest import result
 from flask import Flask, jsonify, request 
 from flask_cors import CORS
-from models import delete_user, get_all_users, get_bookings_by_user_id, get_user_by_id, get_user_by_username_or_email, insert_user, update_user 
-from auth import generate_jwt , hasher, degenerate_jwt
+from users_service.models import (
+    delete_user, get_all_users, get_bookings_by_user_id,
+    get_user_by_id, get_user_by_username_or_email,
+    insert_user, update_user,
+)
+from users_service.auth import generate_jwt, hasher, degenerate_jwt
 
 """
 

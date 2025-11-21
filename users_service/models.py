@@ -8,7 +8,7 @@ Then we create all the functions that manipulate that database and that we need.
 import os 
 import psycopg2 , psycopg2.extras
 from contextlib import contextmanager
-from auth import hasher
+from users_service.auth import hasher
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 @contextmanager

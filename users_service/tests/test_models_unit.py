@@ -3,12 +3,8 @@
 import pytest
 from contextlib import contextmanager
 
-import models  # adjust if you package as users_service.models
-
-
-# ---------------------------------------------------------------------------
-# Test helpers: fake cursor / connection / get_db_connection
-# ---------------------------------------------------------------------------
+# import models  # adjust if you package as users_service.models
+from users_service import models
 
 class DummyCursor:
     def __init__(self):

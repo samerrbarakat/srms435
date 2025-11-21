@@ -6,7 +6,8 @@ import sys
 
 # add users_service/ to import path so "from main import create_app" works
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from main import create_app
+# from main import create_app
+from users_service.main import create_app
 
 # HARD-CODE REAL DB URL (NO TEST DB)
 DB_URL = "postgresql://appuser:appsecret@localhost:5432/srms_db"
