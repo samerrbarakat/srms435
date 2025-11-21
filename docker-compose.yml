@@ -12,7 +12,8 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/init/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-
+    networks:           
+      - srms_net
   users_service:
     build:
       context: .

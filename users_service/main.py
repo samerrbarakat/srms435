@@ -72,7 +72,8 @@ def create_app():
         
         if not name or not username or not email or not password or not role :
             return jsonify({"message": "Missing required fields"}), 400
-        
+        if role == "admin":
+            return jsonify({"message": "Cannot register as admin"}), 400
         hashed_password =  hasher(password)  # Placeholder for actual hashing logic.
         result = insert_user(name, username, email, hashed_password, role)
         if isinstance(result, tuple):
@@ -102,7 +103,10 @@ def create_app():
         username = body.get("username")
         email = body.get("email")
         password = body.get("password")
+        if not password or (not username and not email):
+            return jsonify({"message": "Missing required fields"}), 400
         
+         # Fetch user by username or email
         if username:
            result = get_user_by_username_or_email(username=username, email=None)
         elif email:
@@ -112,11 +116,11 @@ def create_app():
         if isinstance(result, tuple):
             valid, e = result
             return jsonify(e), 400
-
+            
         valid = result
         # Here we would verify the credentials against the database.
         if not valid:
-            return jsonify({"message": "Invalid username/email or password"}), 401
+            return jsonify({"message": "Invalid username/email or password - nv"}), 401
         
         stored_hash = valid.get("password_hash")
         if not stored_hash or not hasher(password) == stored_hash:

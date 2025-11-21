@@ -4,7 +4,7 @@ We assume that DATABASE_URL is set in the environment variables for database con
 First we provide a way to get a connection to the database using a context manager.
 Then we create all the functions that manipulate that database and that we need. 
 """
-
+# admin password is srms435 
 import os 
 import psycopg2 , psycopg2.extras
 from contextlib import contextmanager
