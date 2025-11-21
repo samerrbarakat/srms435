@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    container_name: srms_db
+    restart: always
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: appsecret
+      POSTGRES_DB: srms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    networks:           
+      - srms_net
+  users_service:
+    build:
+      context: .
+      dockerfile: users_service/Dockerfile
+    container_name: users_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://appuser:appsecret@db:5432/srms_db
+      JWT_SECRET: "dev-secret-change-me"
+      PORT: "8000"
+    depends_on:
+      - db
+    ports:
+      - "8001:8000"
+    networks:
+      - srms_net
+
+volumes:
+  db_data:
+
+networks:
+  srms_net:
+    driver: bridge
