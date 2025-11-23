@@ -140,7 +140,7 @@ def create_app():
         booking_id = request.view_args['booking_id']
 
         booking = db_get_booking_by_id(booking_id)
-        if booking.user_id !=user_id and role=="user" : 
+        if booking["user_id"] != user_id and role=="user" : 
             return jsonify({"message": "You can only see your own books unless you are previlegd"}),403
         
         if not booking : 
@@ -207,11 +207,11 @@ def create_app():
         booking = db_get_booking_by_id(booking_id)
         if not booking :
             return jsonify({"message" : "This booking does not exist"}),404 
-        if booking.user_id !=user_id and role=="user":
+        if booking["user_id"] !=user_id and role=="user":
             return jsonify({"message" : "you can cancel only ur own booking"}),403
-        if booking.status =="cancelled":
+        if booking["status"] =="cancelled":
             return jsonify({"message" : "Booking already was canceled"}), 400
-        if booking.start_time <= now(): 
+        if booking["start_time"] <= now(): 
             return jsonify({"message" : "session alreasy started or finished"}), 400
         
         cancel = db_soft_cancel_booking(booking_id)
@@ -284,6 +284,8 @@ def create_app():
             return jsonify({"message" : "Users are not allowed to view this"}), 403
         
         bookings = db_get_bookings_by_room(room_id)
-
+        if bookings is None : 
+            return jsonify({"message" : "No bookings found"}), 404 
+        
         return jsonify({"bookings": bookings}), 200 
     return app
