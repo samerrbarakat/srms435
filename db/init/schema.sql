@@ -5,7 +5,6 @@
 -- This keeps things simple for PART I requirements, alater we could add part 2 enhancement that 
 -- could add a backgroud job to update occupancy state if needed. 
 
-
 -- Additionally for room equipment , it will be a json file that lists key value pairs of equipment name and count. 
 -- This is the users table
 create table IF not exists users ( 
@@ -69,3 +68,12 @@ ON reviews (room_id);
 INSERT INTO users (name, username, email, password_hash, role)
 VALUES ('Administrator', 'admin', 'admin@yourdomain.com', 'a72490a7704afc2beddb8f4c114290e4cc62544839fbda00d92d3c0c852e6dd5', 'admin')
 ON CONFLICT (username) DO NOTHING;
+
+-- The password hash above corresponds to 'adminpassword' using SHA-256
+-- This default admin user can be used to perform administrative tasks upon initial setup.
+
+I want to add a few rooms records for testing purposes.
+INSERT INTO rooms (name, capacity, equipment, location, status) VALUES
+('Conference Room A', 20, '{"Projector": 1, "Whiteboard": 1, "WiFi": "Available"}', 'IOEC - First Floor', 'available'),
+('Meeting Room B', 10, '{"TV": 1, "Conference Phone": 1}', 'IOEC - Second Floor', 'available'),
+('Auditorium', 100, '{"Sound System": 1, "Stage Lighting": 1}', 'IOEC - Ground Floor', 'available')
