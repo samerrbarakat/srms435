@@ -40,7 +40,7 @@ def db_check_room_exists(room_id):
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute("SELECT 1 FROM rooms WHERE id = %s;", (room_id,))
             result = cursor.fetchone()
-            yield result is not None
+            return  result is not None
 
 def db_check_room_availability(room_id, start_time, end_time):
     """

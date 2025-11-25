@@ -35,6 +35,10 @@ def authenticate_request(request):
     except Exception:
         return None
 def create_app():
+    """
+    Create and configure the Flask application.
+    
+    """
     app = Flask(__name__)
     CORS(app)
     # ... define all your routes here, or import from a routes module
@@ -42,6 +46,16 @@ def create_app():
     def create_booking():
         """
         Create a new booking for a room and time-slot.
+        Takes input: room_id, start_time, end_time in JSON body.
+        Returns: 201 on success, 400/409 on failure.
+        Checks: room existence, availability.
+        Flow:
+        - Authenticate user.
+        - Validate input.
+        - Check room existence.
+        - Check room availability.
+        - Create booking.
+    
         """
         claims = authenticate_request(request)
         if not claims:
@@ -59,9 +73,11 @@ def create_app():
         end_time = request.json.get("end_time")
         if not room_id or not start_time or not end_time : 
             return jsonify({"message" : "missing some required fields"}), 400
-        room_exists =  db_check_room_exists(room_id)
-        if not room_exists: 
-            return jsonify({"message":"The id deos not belong to an existing room"}), 400
+        if not db_check_room_exists(room_id):
+            return jsonify(
+                {"message": "The id does not belong to an existing room"}
+            ), 400
+
         room_available = db_check_room_availability(room_id, start_time,end_time)
         if not room_available:
             return jsonify({"message" : "Room is not available at the suggested time"}) , 409
@@ -75,6 +91,14 @@ def create_app():
     def get_booking_history():
         """
         Return only the bookings of the authenticated user (satisfies “user’s booking history”).
+        Takes input: none.
+        Returns: list of bookings.
+        Checks: user authentication.
+        Flow:
+        - Authenticate user.
+        - Fetch bookings for user.  
+        - Return bookings.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -91,7 +115,15 @@ def create_app():
         """
         View bookings for a given user id (for admin, facility manager, auditor; user themself can also use it).
         
-        input : 
+        Takes input: none.
+        Returns: list of bookings.
+        Checks: user authentication and authorization.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin, facility manager, auditor, or the user themself).
+        - Fetch bookings for user.
+        - Return bookings.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -111,7 +143,17 @@ def create_app():
     
     @app.route('/api/v1/bookings' ,methods =['GET'])
     def get_all_bookings():
-        
+        """
+        View all bookings (for admin, facility manager, auditor).
+        Takes input: none.
+        Returns: list of all bookings.
+        Checks: user authentication and authorization.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin, facility manager, auditor).
+        - Fetch all bookings.
+        - Return bookings.
+        """
         claims = authenticate_request(request)
         if not claims : 
             return jsonify({"message" : "Seems to be unautharized"}), 401 
@@ -129,7 +171,16 @@ def create_app():
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['GET'])
     def get_booking(booking_id):
         """
-        get a booking by id
+        View a booking by its ID.
+        Takes input: booking_id in URL.
+        Returns: booking details.
+        Checks: user authentication and authorization.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin, facility manager, auditor, or the user themself).
+        - Fetch booking by ID.
+        - Return booking details.
+        
         """
         
         claims = authenticate_request(request)
@@ -152,7 +203,20 @@ def create_app():
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['PATCH'])
     def update_booking(booking_id):
         """
-        update a booking by id
+        Update booking details (room_id, start_time, end_time).
+        Takes input: booking_id in URL, room_id, start_time, end_time in JSON
+        body.
+        Returns: updated booking details.
+        Checks: user authentication, authorization, room existence, availability.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin, facility manager, or the user themself).
+        - Validate input.
+        - Check room existence.
+        - Check room availability.
+        - Update booking.
+        - Return updated booking details.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -177,9 +241,11 @@ def create_app():
             return jsonify({"message" : "You can only update your own booking"}),403
         if booking_id_exists["start_time"] <= now():
              return jsonify({"message" : "cbooking already started or finished "}), 400
-        room_exists =  db_check_room_exists(room_id)
-        if not room_exists: 
-            return jsonify({"message":"The id deos not belong to an existing room"}), 400
+        if not db_check_room_exists(room_id):
+            return jsonify(
+                {"message": "The id does not belong to an existing room"}
+            ), 400
+
         room_available = db_check_room_availability(room_id, start_time,end_time)
         if not room_available:
             return jsonify({"message" : "Room is not available at the suggested time"}) , 409   
@@ -194,7 +260,18 @@ def create_app():
     @app.route('/api/v1/bookings/<int:booking_id>/cancel', methods=['POST'])
     def soft_cancel_booking(booking_id):
         """
-        Set status = 'cancelled'.
+        Soft cancel a booking by its ID.
+        Takes input: booking_id in URL.
+        Returns: confirmation message.
+        Checks: user authentication, authorization, booking status.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin, facility manager, or the user themself).
+        - Check booking existence.
+        - Check booking status (not already cancelled or started).
+        - Soft cancel booking.
+        - Return confirmation.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -222,7 +299,16 @@ def create_app():
     @app.route('/api/v1/bookings/<int:booking_id>/hard', methods=['DELETE'])
     def hard_cancel_booking(booking_id):
         """
-        Permanently delete a booking by its ID.
+        Hard delete a booking by its ID (admin only).
+        Takes input: booking_id in URL.
+        Returns: confirmation message.
+        Checks: user authentication, admin authorization, booking existence.
+        Flow:
+        - Authenticate user.
+        - Authorize user (admin only).
+        - Check booking existence.
+        - Hard delete booking.
+        - Return confirmation.
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -237,12 +323,11 @@ def create_app():
         booking = db_get_booking_by_id(booking_id)
         if not booking : 
             return jsonify({"message" : "Bookinf doesnt exist"}), 404 
-        delete = db_hard_delete_booking(booking_id) 
-        if not delete : 
-            return jsonify({"message" : "it wasnt succesfully deleted "}), 500
+        # Perform hard delete
+        db_hard_delete_booking(booking_id)
+
+        return jsonify({"message": "Booking permanently deleted"}), 200
         
-        return jsonify({"message": f"Booking {booking_id} permanently deleted"}), 200
-    
     @app.route('/api/v1/bookings/availability', methods=['GET'])
     def check_availablity():
         """
@@ -261,9 +346,11 @@ def create_app():
         start_time = request.args.get("start_time")
         end_time = request.args.get("end_time")
         
-        room_exists = db_check_room_exists(room_id)
-        if not room_exists: 
-            return jsonify({"message" : " The id does nto belong to an existing room"}), 400
+        if not db_check_room_exists(room_id):
+            return jsonify(
+                {"message": "The id does not belong to an existing room"}
+            ), 400
+
         
         room_available = db_check_room_availability(room_id, start_time,end_time)
         return jsonify({"room_available": room_available}), 200
