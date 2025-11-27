@@ -22,6 +22,11 @@ from bookings_service.models import (
     db_hard_delete_booking, 
     db_get_bookings_by_room,
 )
+
+from bookings_service.circuit_breaker import  ServiceUnavailable
+from bookings_service.circuit_breaker_modules import fetch_user
+
+
 def authenticate_request(request):
     """Extract user info from JWT if present."""
     # You can improve by using flask_jwt_extended or manual verification
@@ -124,6 +129,8 @@ def create_app():
         - Fetch bookings for user.
         - Return bookings.
         
+        We also here use the circuit breaker protected fetch_user function to verify user existence.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -135,6 +142,25 @@ def create_app():
         if user_id !=user_id_claims  and role== "user" : 
             return jsonify({"message": "you can only see your won bookings unless previledged roles"}) , 403
         
+        # Verify user existence via Users service
+        token = request.headers.get('Authorization', '').split(' ')[1]  # Extract token
+        try:
+            user_info = fetch_user(user_id,token)
+            print(user_info)
+        except ServiceUnavailable as e:
+            # Circuit is OPEN → fail fast with 503
+            return jsonify({
+                "message": "Users service temporarily unavailable, please try again later.",
+                "details": str(e),
+            }), 503
+        except Exception:
+            # Underlying HTTP problem, but breaker may still be CLOSED/HALF_OPEN
+            print(Exception)
+            return jsonify({
+                "message": "Could not validate user with Users service at the moment.",
+            }), 502
+            if not user_info:
+                return jsonify({"message": "User does not exist"}), 404
         bookings = db_get_bookings_by_user(user_id)
         if bookings is None : 
             return jsonify({"message" : "No bookings found"}), 404 
