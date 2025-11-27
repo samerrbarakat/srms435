@@ -7,6 +7,7 @@ from users_service.models import (
     insert_user, update_user,
 )
 from users_service.auth import generate_jwt, hasher, degenerate_jwt
+from users_service.rate_limiter import rate_limit
 
 """
 This is the main entry point for the Users Service.
@@ -42,6 +43,7 @@ def create_app():
     # Return the app instance
  
     @app.route('/api/v1/users/register', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def register_user():
         """
         This route takes input user data ( name, username, email, password, role)
@@ -88,6 +90,7 @@ def create_app():
         }), 201
 
     @app.route('/api/v1/users/login', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def login_user():
         """
         This route takes input user data ( username, password)
@@ -131,6 +134,7 @@ def create_app():
         return jsonify({"message": "User logged in successfully", "token": token}), 200
 
     @app.route('/api/v1/users/adminelevate', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def elevate_user_to_role():
         """
         This route allows an admin to elevate a user's role.
@@ -171,7 +175,8 @@ def create_app():
 
 
 
-    @app.route('/api/v1/users', methods=['GET']) #
+    @app.route('/api/v1/users', methods=['GET']) 
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def get_users():
         """
         This route fetches all users from the database.
@@ -203,6 +208,8 @@ def create_app():
         return jsonify(users), 200
 
     @app.route('/api/v1/users/<int:user_id>', methods=["GET"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
+
     def get_user(user_id):
         """
         Get user info by id.
@@ -232,6 +239,7 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>', methods=["PUT", "PATCH"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def update_user_info(user_id):
         """
         Admin or user can update own info.
@@ -282,6 +290,7 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>', methods=["DELETE"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def delete_user_info(user_id):
         """
         Admin can delete any user.
@@ -310,6 +319,7 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>/bookings', methods=["GET"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def get_user_bookings(user_id):
         """
         Admin or user can get their own bookings.

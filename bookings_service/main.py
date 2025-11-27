@@ -4,6 +4,7 @@ In this module, we create and configure the Flask application for the bookings s
 Here's the list for all the needed API routes: 
 
 """
+from bookings_service.rate_limiter import rate_limit
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -93,6 +94,7 @@ def create_app():
         return   jsonify({"message" : "Booking creation suucceeeded! "}), 201
     
     @app.route('/api/v1/bookings/myhistory', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_booking_history():
         """
         Return only the bookings of the authenticated user (satisfies “user’s booking history”).
@@ -116,6 +118,7 @@ def create_app():
         return jsonify(bookings), 200
 
     @app.route('/api/v1/bookings/user/<int:user_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_user_bookings(user_id):
         """
         View bookings for a given user id (for admin, facility manager, auditor; user themself can also use it).
@@ -168,6 +171,7 @@ def create_app():
         return jsonify(bookings), 200
     
     @app.route('/api/v1/bookings' ,methods =['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_all_bookings():
         """
         View all bookings (for admin, facility manager, auditor).
@@ -195,6 +199,7 @@ def create_app():
     
     
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_booking(booking_id):
         """
         View a booking by its ID.
@@ -227,6 +232,7 @@ def create_app():
         return jsonify(booking), 200
     
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['PATCH'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def update_booking(booking_id):
         """
         Update booking details (room_id, start_time, end_time).
@@ -284,6 +290,7 @@ def create_app():
         return jsonify(update), 200
         
     @app.route('/api/v1/bookings/<int:booking_id>/cancel', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def soft_cancel_booking(booking_id):
         """
         Soft cancel a booking by its ID.
@@ -323,6 +330,7 @@ def create_app():
         return jsonify({"message": f"Booking {booking_id} cancelled"}), 200
     
     @app.route('/api/v1/bookings/<int:booking_id>/hard', methods=['DELETE'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def hard_cancel_booking(booking_id):
         """
         Hard delete a booking by its ID (admin only).
@@ -355,6 +363,7 @@ def create_app():
         return jsonify({"message": "Booking permanently deleted"}), 200
         
     @app.route('/api/v1/bookings/availability', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def check_availablity():
         """
         Check whether a room is free in a given timeslot (satisfies “Checking room availability (based on time and date)” requirement).   
@@ -392,6 +401,7 @@ def create_app():
         return jsonify({"room_available": room_available}), 200
 
     @app.route('/api/v1/bookings/room/<int:room_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_bookings_for_room(room_id):
         """
         View bookings for a given room id (for admin, facility manager, auditor).
