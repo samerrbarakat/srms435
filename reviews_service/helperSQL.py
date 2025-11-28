@@ -36,7 +36,9 @@ class Review(Base):
 
 
 def _to_dict(review: Review) -> Dict[str, Any]:
+    """Convert a Review ORM object to a dictionary suitable for JSON serialization."""
     def _fmt(dt: Optional[datetime]) -> Optional[str]:
+        """Format datetime to string in Beirut timezone."""
         if not dt:
             return None
         # Treat naive datetimes as UTC and convert to Beirut time for display
@@ -68,6 +70,7 @@ def _to_dict(review: Review) -> Dict[str, Any]:
 
 
 def _validate_rating(rating: Optional[int]) -> None:
+    """Validate that the rating is an integer between 1 and 5."""
     if rating is None:
         return
     if not isinstance(rating, int) or rating < 1 or rating > 5:
@@ -75,6 +78,7 @@ def _validate_rating(rating: Optional[int]) -> None:
 
 
 def create_review(user_id: int, room_id: int, rating: int, comment: Optional[str]) -> Dict[str, Any]:
+    """Create a new review and return it as a dictionary."""
     _validate_rating(rating)
     with SessionLocal() as session:
         review = Review(
@@ -101,12 +105,14 @@ def create_review(user_id: int, room_id: int, rating: int, comment: Optional[str
 
 
 def get_review_by_id(review_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieve a review by its ID and return it as a dictionary, or None if not found."""
     with SessionLocal() as session:
         review: Optional[Review] = session.get(Review, review_id)
         return _to_dict(review) if review else None
 
 
 def list_all_reviews() -> List[Dict[str, Any]]:
+    """List all reviews in the database."""
     with SessionLocal() as session:
         stmt = select(Review).order_by(Review.created_at.desc())
         reviews = session.execute(stmt).scalars().all()
@@ -114,6 +120,7 @@ def list_all_reviews() -> List[Dict[str, Any]]:
 
 
 def list_reviews_by_room(room_id: int) -> List[Dict[str, Any]]:
+    """List reviews for a specific room."""
     with SessionLocal() as session:
         stmt = select(Review).where(Review.room_id == room_id).order_by(Review.created_at.desc())
         reviews = session.execute(stmt).scalars().all()
@@ -121,6 +128,7 @@ def list_reviews_by_room(room_id: int) -> List[Dict[str, Any]]:
 
 
 def list_reviews_by_user(user_id: int) -> List[Dict[str, Any]]:
+    """List reviews for a specific user."""
     with SessionLocal() as session:
         stmt = select(Review).where(Review.user_id == user_id).order_by(Review.created_at.desc())
         reviews = session.execute(stmt).scalars().all()
@@ -128,6 +136,7 @@ def list_reviews_by_user(user_id: int) -> List[Dict[str, Any]]:
 
 
 def update_review(review_id: int, rating: Optional[int] = None, comment: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Update a review's rating and/or comment."""
     _validate_rating(rating)
     if rating is None and comment is None:
         return None
@@ -146,6 +155,7 @@ def update_review(review_id: int, rating: Optional[int] = None, comment: Optiona
 
 
 def delete_review(review_id: int) -> bool:
+    """Delete a review by its ID. Returns True if deleted, False if not found."""
     with SessionLocal() as session:
         review: Optional[Review] = session.get(Review, review_id)
         if review is None:
@@ -156,6 +166,7 @@ def delete_review(review_id: int) -> bool:
 
 
 def flag_review(review_id: int, flag_reason: Optional[str] = None, is_flagged: bool = True) -> Optional[Dict[str, Any]]:
+    """Flag or unflag a review as inappropriate."""
     with SessionLocal() as session:
         review: Optional[Review] = session.get(Review, review_id)
         if review is None:
@@ -169,9 +180,11 @@ def flag_review(review_id: int, flag_reason: Optional[str] = None, is_flagged: b
 
 
 def remove_review(review_id: int, reason: Optional[str] = "removed by moderator") -> Optional[Dict[str, Any]]:
+    """Soft remove a review by flagging it with a removal reason."""
     # Reuse flagging to represent soft removal
     return flag_review(review_id, flag_reason=reason, is_flagged=True)
 
 
 def restore_review(review_id: int) -> Optional[Dict[str, Any]]:
+    """Restore a previously removed review by unflagging it."""
     return flag_review(review_id, flag_reason=None, is_flagged=False)

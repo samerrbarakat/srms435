@@ -25,10 +25,12 @@ def create_app():
 
     @app.route("/health", methods=["GET"])
     def health_check():
+        """Health check endpoint."""
         return jsonify({"status": "ok"}), 200
 
 
     def _parse_int(value: Optional[str]) -> Optional[int]:
+        """Parse an integer from a string, returning None if invalid."""
         if value is None:
             return None
         try:
@@ -38,6 +40,7 @@ def create_app():
 
 
     def _parse_equipment_param(value: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Parse equipment query parameter into a dictionary."""
         if value is None:
             return None
         items = [item.strip() for item in value.split(",") if item.strip()]
@@ -48,6 +51,7 @@ def create_app():
 
     @app.route("/api/v1/rooms", methods=["POST"])
     def create_room_route():
+        """Create a new room."""
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROOM_MANAGERS:
             return jsonify({"error": "admin access required"}), 403
@@ -80,11 +84,13 @@ def create_app():
 
     @app.route("/api/v1/rooms", methods=["GET"])
     def list_rooms_route():
+        """List all rooms."""
         rooms = list_all_rooms()
         return jsonify(rooms), 200
 
     @app.route("/api/v1/rooms/<int:room_id>", methods=["PATCH"])
     def update_room_route(room_id: int):
+        """Update a room's details."""
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROOM_MANAGERS:
             return jsonify({"error": "admin access required"}), 403
@@ -131,6 +137,7 @@ def create_app():
 
     @app.route("/api/v1/rooms/<int:room_id>", methods=["DELETE"])
     def delete_room_route(room_id: int):
+        """Delete a room."""
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROOM_MANAGERS:
             return jsonify({"error": "admin access required"}), 403
@@ -143,6 +150,7 @@ def create_app():
 
     @app.route("/api/v1/rooms/available", methods=["GET"])
     def list_available_rooms_route():
+        """List available rooms with optional filters."""
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -159,6 +167,7 @@ def create_app():
 
     @app.route("/api/v1/rooms/<int:room_id>/status", methods=["GET"])
     def get_room_status_route(room_id: int):
+        """Get the current status of a room."""
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401

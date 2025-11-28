@@ -43,10 +43,12 @@ def create_app():
 
     @app.route("/health", methods=["GET"])
     def health_check():
+        """Health check endpoint."""
         return jsonify({"status": "ok"}), 200
 
     @app.route("/api/v1/reviews", methods=["POST"])
     def submit_review():
+        """Submit a new review for a room."""
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -76,6 +78,10 @@ def create_app():
 
     @app.route("/api/v1/reviews", methods=["GET"])
     def list_all_reviews_route():
+        """List all reviews (admin/moderator/auditor only).
+        :param request: Flask request object.
+        :return: JSON response with all reviews or error message.
+        """
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROLE_READ_ALL:
             return jsonify({"error": "admin, moderator, or auditor role required"}), 403
@@ -84,11 +90,19 @@ def create_app():
 
     @app.route("/api/v1/rooms/<int:room_id>/reviews", methods=["GET"])
     def get_reviews_for_room(room_id: int):
+        """List reviews for a specific room.
+        :param request: Flask request object.
+        :return: JSON response with reviews for the specified room.
+        """
         reviews = list_reviews_by_room(room_id)
         return jsonify(reviews), 200
 
     @app.route("/api/v1/reviews/mine", methods=["GET"])
     def get_my_reviews():
+        """List reviews for the authenticated user.
+        :param request: Flask request object.
+        :return: JSON response with reviews for the authenticated user.
+        """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -100,6 +114,11 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>", methods=["PATCH"])
     def update_review_route(review_id: int):
+        """Update a review by its ID.
+        
+        :param request: Flask request object.
+        :return: JSON response with the updated review or error message.
+        """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -129,6 +148,10 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>", methods=["DELETE"])
     def delete_review_route(review_id: int):
+        """Delete a review by its ID.
+        :param request: Flask request object.
+        :return: JSON response with success or error message.
+        """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -149,6 +172,10 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>/flag", methods=["POST"])
     def flag_review_route(review_id: int):
+        """Flag a review as inappropriate.
+        :param request: Flask request object.
+        :return: JSON response with the flagged review or error message.
+        """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"error": "authentication required"}), 401
@@ -165,6 +192,10 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>/flag/clear", methods=["POST"])
     def clear_flag_route(review_id: int):
+        """Clear the flag on a review.
+        :param request: Flask request object.
+        :return: JSON response with the cleared review or error message.
+        """
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROLE_MODERATION:
             return jsonify({"error": "admin or moderator role required"}), 403
@@ -176,6 +207,10 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>/remove", methods=["POST"])
     def remove_review_route(review_id: int):
+        """Remove a review (soft delete).
+        :param request: Flask request object.
+        :return: JSON response with the removed review or error message.
+        """
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROLE_MODERATION:
             return jsonify({"error": "admin or moderator role required"}), 403
@@ -190,6 +225,10 @@ def create_app():
 
     @app.route("/api/v1/reviews/<int:review_id>/restore", methods=["POST"])
     def restore_review_route(review_id: int):
+        """Restore a previously removed review.
+        :param request: Flask request object.
+        :return: JSON response with the restored review or error message.
+        """
         claims = authenticate_request(request)
         if not claims or claims.get("role") not in ROLE_MODERATION:
             return jsonify({"error": "admin or moderator role required"}), 403

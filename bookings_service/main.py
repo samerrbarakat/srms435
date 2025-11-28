@@ -8,7 +8,7 @@ from bookings_service.rate_limiter import rate_limit
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from datetime import datetime as now
+from datetime import datetime 
 from bookings_service.auth import degenerate_jwt
 from bookings_service.models import (
     db_check_room_exists,
@@ -114,7 +114,6 @@ def create_app():
         role = claims.get("role")
         
         bookings = db_get_booking_history(user_id)
-        
         return jsonify(bookings), 200
 
     @app.route('/api/v1/bookings/user/<int:user_id>', methods=['GET'])
@@ -271,7 +270,7 @@ def create_app():
             return jsonify({"message" : "Cannot update a cancelled booking"}), 400
         if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user" or claims.get("role") not in ["admin", "facility_manager"]:
             return jsonify({"message" : "Not authorized to update this booking"}),403
-        if booking_id_exists["start_time"] <= now():
+        if booking_id_exists["start_time"] <= datetime.now():
              return jsonify({"message" : "cbooking already started or finished "}), 400
         if not db_check_room_exists(room_id):
             return jsonify(
@@ -321,7 +320,7 @@ def create_app():
             return jsonify({"message" : "you can cancel only ur own booking"}),403
         if booking["status"] =="cancelled":
             return jsonify({"message" : "Booking already was canceled"}), 400
-        if booking["start_time"] <= now(): 
+        if booking["start_time"] <= datetime.now(): 
             return jsonify({"message" : "session alreasy started or finished"}), 400
         
         cancel = db_soft_cancel_booking(booking_id)

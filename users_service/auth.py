@@ -13,7 +13,8 @@ def hasher(password) :
     # How do we now that the same password next time will hash to the same value? 
     # Answer : Because the SHA-256 algorithm is deterministic, meaning it will always produce the same output for the same input.
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
-# print(hasher("mypassword"))  # Example usage
+print(hasher("mypassword"))  # Example usage
+
 def verify_password(stored_hash, provided_password) -> bool:
     """Verifies a provided password against the stored hash.
 

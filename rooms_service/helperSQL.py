@@ -31,12 +31,14 @@ class Room(Base):
 
 
 def _serialize_equipment(equipment: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Serialize equipment dictionary to JSON string."""
     if equipment is None:
         return None
     return json.dumps(equipment)
 
 
 def _deserialize_equipment(equipment: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Deserialize equipment JSON string to dictionary."""
     if equipment is None:
         return None
     try:
@@ -46,6 +48,7 @@ def _deserialize_equipment(equipment: Optional[str]) -> Optional[Dict[str, Any]]
 
 
 def _room_to_dict(room: Room) -> Dict[str, Any]:
+    """Convert a Room ORM object to a dictionary suitable for JSON serialization."""
     return {
         "id": room.id,
         "name": room.name,
@@ -59,6 +62,7 @@ def _room_to_dict(room: Room) -> Dict[str, Any]:
 def _equipment_matches(
     room_equipment: Optional[Dict[str, Any]], required: Optional[Dict[str, Any]]
 ) -> bool:
+    """Check if room equipment meets the required equipment specifications."""
     if not required:
         return True
     if not room_equipment:
@@ -81,6 +85,7 @@ def create_room(
     location: str,
     status: str = "available",
 ) -> Dict[str, Any]:
+    """Create a new room with the given details."""
     with SessionLocal() as session:
         room = Room(
             name=name,
@@ -108,6 +113,7 @@ def update_room(
     location: Optional[str] = None,
     status: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
+    """Update room details and return the updated room, or None if not found."""
     with SessionLocal() as session:
         room: Optional[Room] = session.get(Room, room_id)
         if room is None:
@@ -132,6 +138,7 @@ def update_room(
 
 
 def delete_room(room_id: int) -> bool:
+    """Delete a room by its ID. Returns True if deleted, False if not found."""
     with SessionLocal() as session:
         room: Optional[Room] = session.get(Room, room_id)
         if room is None:
@@ -153,6 +160,7 @@ def list_available_rooms(
     location: Optional[str] = None,
     equipment: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
+    """List available rooms with optional filters."""
     with SessionLocal() as session:
         conditions = [Room.status == "available"]
         if capacity is not None:
@@ -172,6 +180,7 @@ def list_available_rooms(
 
 
 def get_room_status(room_id: int) -> Optional[Dict[str, Any]]:
+    """Get the current status of a room."""
     with SessionLocal() as session:
         room: Optional[Room] = session.get(Room, room_id)
         if room is None:

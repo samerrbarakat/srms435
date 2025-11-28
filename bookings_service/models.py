@@ -23,13 +23,17 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5
 @contextmanager 
 def get_db_connection():
     """
-    Context manager for database connection.
-    Yields a psycopg2 connection object."""
-    ocnn = psycopg2.connect(DATABASE_URL)
+    Context manager to get a database connection.
+    Ensures that the connection is properly closed after use.
+    """
+    conn = psycopg2.connect(DATABASE_URL)
     try:
-        yield ocnn
+        yield conn
+    except psycopg2.Error as e:
+        print(f"There's a problem connecting to the database: {e}")
+        raise e
     finally:
-        ocnn.close()
+        conn.close()
         
 def db_check_room_exists(room_id):
     """
@@ -76,10 +80,15 @@ def db_create_booking(user_id, room_id, start_time, end_time):
 
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(insert_query, (user_id, room_id, start_time, end_time))
-            booking = cur.fetchone()
-            conn.commit()
-            return dict(booking) if booking else None
+            try:
+                cur.execute(insert_query, (user_id, room_id, start_time, end_time))
+                booking = cur.fetchone()
+                conn.commit()
+                return dict(booking) if booking else None
+            except psycopg2.Error as e:
+                print(f"Database error in create_booking: {e}") # Or use proper logging
+                conn.rollback()
+                return None
         
 def db_get_all_bookings():
     """
@@ -112,22 +121,7 @@ def db_get_booking_history(user_id: int):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, (user_id,))
             rows = cur.fetchall()
-            return [dict(row) for row in rows]
-def db_get_booking_history(user_id: int):
-    """
-    Return all bookings for a specific user, ordered by start_time DESC.
-    """
-    query = """
-        SELECT id, user_id, room_id, start_time, end_time, status, created_at
-        FROM bookings
-        WHERE user_id = %s
-        ORDER BY start_time DESC;
-    """
-
-    with get_db_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, (user_id,))
-            rows = cur.fetchall()
+            print(rows)
             return [dict(row) for row in rows]
         
 def db_get_bookings_by_user(user_id):
