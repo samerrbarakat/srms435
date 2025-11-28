@@ -111,8 +111,8 @@ def create_app():
         
         if not name or not username or not email or not password or not role :
             return jsonify({"message": "Missing required fields"}), 400
-        # if role == "admin":
-        #     return jsonify({"message": "Cannot register as admin"}), 400
+        if role != "user":
+            return jsonify({"message": "You need to register as a user, and the admin promotes you"}), 400
         hashed_password =  hasher(password)  # Placeholder for actual hashing logic.
         result = insert_user(name, username, email, hashed_password, role)
         if isinstance(result, tuple):
@@ -220,6 +220,7 @@ def create_app():
         This route fetches all users from the database.
         Returns a list of users.
         we need to validate the role for admin only access.
+        RBAC Rules: Admin and Auditor (read-only) can view all users.
         Expected response:
         [
             {
@@ -232,7 +233,7 @@ def create_app():
         
         # We need to get the role ffrom the JWT token to validate admin access.
         claims = authenticate_request(request)
-        if not claims or claims.get("role") != "admin":
+        if not claims or claims.get("role") not in ["admin","auditor"]:
             return jsonify({"message": "Admin access required"}), 403
         
         # now we need to get the users from the database.
@@ -247,19 +248,19 @@ def create_app():
 
     @app.route('/api/v1/users/<int:user_id>', methods=["GET"])
     @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
-
     def get_user(user_id):
         """
         Get user info by id.
         Only admin or the user themself can access.
         Never return password hash.
+        RBAC Rules: Admin and Auditor can get any user. Regular User and Facility Manager can only get their own profile.
         """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"message": "Authentication is required for this service!"}), 403
 
         # authorization
-        if not (claims.get("role") == "admin" or str(claims.get("user_id")) == str(user_id)):
+        if not (claims.get("role") in ["admin", "auditor"] or str(claims.get("user_id")) == str(user_id)):
             return jsonify({"message": "You are not authorized to view this user info!"}), 403
 
         # model call (models return value OR (None, err))
@@ -283,6 +284,7 @@ def create_app():
         Admin or user can update own info.
         Non-admin cannot change role.
         Hashing is done inside models.update_user(password=...).
+        RBAC Rules: Admin can update any user. Regular User and Facility Manager can manage their own profile.
         """
         claims = authenticate_request(request)
         if not claims:
@@ -371,12 +373,13 @@ def create_app():
     def get_user_bookings(user_id):
         """
         Admin or user can get their own bookings.
+        RBAC Rules: Admin can view any user's booking history. Regular User and Facility Manager can view their own. Auditor should have read access.
         """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"message": "Authentication is required for this service!"}), 403
 
-        if not (claims.get("role") == "admin" or str(claims.get("user_id")) == str(user_id)):
+        if not (claims.get("role") in ["admin", "auditor"] or str(claims.get("user_id")) == str(user_id)):
             return jsonify({"message": "You are not authorized to view these bookings!"}), 403
 
         result = get_bookings_by_user_id(user_id)

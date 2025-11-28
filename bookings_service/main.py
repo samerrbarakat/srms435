@@ -142,7 +142,7 @@ def create_app():
         user_id_claims = claims.get("user_id")
         
         user_id = request.view_args['user_id']
-        if user_id !=user_id_claims  and role== "user" : 
+        if user_id != user_id_claims and role not in ["admin", "facility_manager", "auditor"]:
             return jsonify({"message": "you can only see your won bookings unless previledged roles"}) , 403
         
         # Verify user existence via Users service
@@ -190,8 +190,8 @@ def create_app():
         user_id= claims.get("user_id")
         role = claims.get("role")
         
-        if role =="user" :
-            return jsonify({"message": "Users are not previleged to view all bookings"}), 403
+        if role not in ["admin", "facility_manager", "auditor"]:
+            return jsonify({"message": "Not privileged to view all bookings"}), 403
           
         
         all_bookings = db_get_all_bookings()
@@ -269,8 +269,8 @@ def create_app():
             return jsonify({"message":" Booking doesnt exist! "}), 404 
         if booking_id_exists["status"] == "cancelled":
             return jsonify({"message" : "Cannot update a cancelled booking"}), 400
-        if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user":
-            return jsonify({"message" : "You can only update your own booking"}),403
+        if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user" or claims.get("role") not in ["admin", "facility_manager"]:
+            return jsonify({"message" : "Not authorized to update this booking"}),403
         if booking_id_exists["start_time"] <= now():
              return jsonify({"message" : "cbooking already started or finished "}), 400
         if not db_check_room_exists(room_id):
@@ -296,6 +296,7 @@ def create_app():
         Soft cancel a booking by its ID.
         Takes input: booking_id in URL.
         Returns: confirmation message.
+        RBAC Rules: A user can cancel their own booking. Admin and Facility Manager can cancel any booking.
         Checks: user authentication, authorization, booking status.
         Flow:
         - Authenticate user.
@@ -316,7 +317,7 @@ def create_app():
         booking = db_get_booking_by_id(booking_id)
         if not booking :
             return jsonify({"message" : "This booking does not exist"}),404 
-        if booking["user_id"] !=user_id and role=="user":
+        if booking["user_id"] !=user_id and role=="user" and role not in ["admin", "facility_manager"]:
             return jsonify({"message" : "you can cancel only ur own booking"}),403
         if booking["status"] =="cancelled":
             return jsonify({"message" : "Booking already was canceled"}), 400
@@ -408,6 +409,7 @@ def create_app():
         Takes input: none.
         Returns: list of bookings.
         Checks: user authentication and authorization.
+        RBAC Rules: Admin, Facility Manager, and Auditor should be able to do this.
         Flow:
         - Authenticate user.
         - Authorize user (admin, facility manager, auditor).
@@ -421,8 +423,8 @@ def create_app():
             return jsonify({"message" : "Seems to be unautharized"}), 401 
         user_id= claims.get("user_id")
         role = claims.get("role")
-        if role =="user":
-            return jsonify({"message" : "Users are not allowed to view this"}), 403
+        if role not in ["admin", "facility_manager", "auditor"]:
+            return jsonify({"message" : "Not privileged to view all bookings"}), 403
         
         bookings = db_get_bookings_by_room(room_id)
         if bookings is None : 
