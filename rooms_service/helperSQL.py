@@ -1,8 +1,9 @@
 import os
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, Integer, Text, and_, create_engine, select
+from sqlalchemy import Column, Integer, Text, DateTime, and_, create_engine, select, UniqueConstraint
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -28,6 +29,19 @@ class Room(Base):
     equipment = Column(Text)
     location = Column(Text)
     status = Column(Text, default="available")
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+    __table_args__ = (UniqueConstraint("user_id", "room_id", name="uq_wishlist_user_room"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    room_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+Base.metadata.create_all(bind=engine)
 
 
 def _serialize_equipment(equipment: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -179,3 +193,49 @@ def get_room_status(room_id: int) -> Optional[Dict[str, Any]]:
         base_status = room.status or "available"
         status_value = "available" if base_status == "available" else "booked"
         return {"id": room.id, "status": status_value}
+
+
+def add_room_to_wishlist(user_id: int, room_id: int) -> Dict[str, Any]:
+    with SessionLocal() as session:
+        room: Optional[Room] = session.get(Room, room_id)
+        if room is None:
+            raise ValueError("room not found")
+        wishlist = Wishlist(user_id=user_id, room_id=room_id, created_at=datetime.utcnow())
+        session.add(wishlist)
+        try:
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("room already in wishlist") from exc
+        return {
+            "id": wishlist.id,
+            "room_id": room.id,
+            "wishlisted_at": wishlist.created_at.isoformat(timespec="seconds"),
+        }
+
+
+def list_wishlist_for_user(user_id: int) -> List[Dict[str, Any]]:
+    with SessionLocal() as session:
+        stmt = select(Wishlist, Room).join(Room, Wishlist.room_id == Room.id).where(Wishlist.user_id == user_id)
+        rows = session.execute(stmt).all()
+        result: List[Dict[str, Any]] = []
+        for wishlist, room in rows:
+            result.append(
+                {
+                    "id": wishlist.id,
+                    "room": _room_to_dict(room),
+                    "wishlisted_at": wishlist.created_at.isoformat(timespec="seconds") if wishlist.created_at else None,
+                }
+            )
+        return result
+
+
+def remove_room_from_wishlist(user_id: int, room_id: int) -> bool:
+    with SessionLocal() as session:
+        stmt = select(Wishlist).where(Wishlist.user_id == user_id, Wishlist.room_id == room_id)
+        wishlist = session.execute(stmt).scalar_one_or_none()
+        if wishlist is None:
+            return False
+        session.delete(wishlist)
+        session.commit()
+        return True

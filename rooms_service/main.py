@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from rooms_service.auth import degenerate_jwt
-from rooms_service.helperSQL import create_room, update_room, delete_room, list_available_rooms, get_room_status, list_all_rooms
+from rooms_service.helperSQL import create_room, update_room, delete_room, list_available_rooms, get_room_status, list_all_rooms, add_room_to_wishlist, list_wishlist_for_user, remove_room_from_wishlist
 from rooms_service.recommendations import recommend_rooms
 from rooms_service.errors import ApiError, register_error_handlers
 
@@ -174,6 +174,50 @@ def create_app():
 
         rooms = recommend_rooms(capacity=capacity, location=location, equipment=equipment)
         return jsonify(rooms), 200
+
+    @app.route("/api/v1/wishlist", methods=["GET"])
+    def list_wishlist_route():
+        claims = authenticate_request(request)
+        if not claims:
+            raise ApiError(401, "authentication required", "unauthorized")
+        user_id = claims.get("user_id")
+        if user_id is None:
+            raise ApiError(401, "user_id missing from token", "unauthorized")
+        wishlist = list_wishlist_for_user(int(user_id))
+        return jsonify(wishlist), 200
+
+    @app.route("/api/v1/wishlist", methods=["POST"])
+    def add_wishlist_route():
+        claims = authenticate_request(request)
+        if not claims:
+            raise ApiError(401, "authentication required", "unauthorized")
+        user_id = claims.get("user_id")
+        if user_id is None:
+            raise ApiError(401, "user_id missing from token", "unauthorized")
+
+        payload = request.get_json(silent=True) or {}
+        room_id = payload.get("room_id")
+        if not isinstance(room_id, int):
+            raise ApiError(400, "room_id must be an integer", "validation_error")
+        try:
+            entry = add_room_to_wishlist(int(user_id), room_id)
+        except ValueError as exc:
+            raise ApiError(400, str(exc), "validation_error")
+        return jsonify(entry), 201
+
+    @app.route("/api/v1/wishlist/<int:room_id>", methods=["DELETE"])
+    def remove_wishlist_route(room_id: int):
+        claims = authenticate_request(request)
+        if not claims:
+            raise ApiError(401, "authentication required", "unauthorized")
+        user_id = claims.get("user_id")
+        if user_id is None:
+            raise ApiError(401, "user_id missing from token", "unauthorized")
+
+        removed = remove_room_from_wishlist(int(user_id), room_id)
+        if not removed:
+            raise ApiError(404, "wishlist entry not found", "not_found")
+        return ("", 204)
 
 
     @app.route("/api/v1/rooms/<int:room_id>/status", methods=["GET"])
