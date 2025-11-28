@@ -13,7 +13,7 @@ def hasher(password) :
     # How do we now that the same password next time will hash to the same value? 
     # Answer : Because the SHA-256 algorithm is deterministic, meaning it will always produce the same output for the same input.
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
-# print(hasher("mypassword"))  # Example usage
+print(hasher("mypassword"))  # Example usage
 def verify_password(stored_hash, provided_password) -> bool:
     """Verifies a provided password against the stored hash.
 
@@ -27,7 +27,7 @@ def verify_password(stored_hash, provided_password) -> bool:
     return stored_hash == hasher(provided_password)
 
 
-def generate_jwt(payload, secret="your_secret_key", algorithm = 'HS256') :
+def generate_jwt(payload, secret, algorithm = 'HS256') :
     """Generates a JWT token.
 
     Args:
@@ -40,7 +40,7 @@ def generate_jwt(payload, secret="your_secret_key", algorithm = 'HS256') :
     """
     return jwt.encode(payload, secret, algorithm=algorithm)
 
-def degenerate_jwt(token, secret="your_secret_key", algorithms: list = ['HS256']) -> dict:
+def degenerate_jwt(token, secret, algorithms: list = ['HS256']) -> dict:
     """Decodes a JWT token.
 
     Args:

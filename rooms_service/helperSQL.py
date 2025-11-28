@@ -141,6 +141,13 @@ def delete_room(room_id: int) -> bool:
         return True
 
 
+def list_all_rooms() -> List[Dict[str, Any]]:
+    """Return all rooms with full details."""
+    with SessionLocal() as session:
+        rooms = session.execute(select(Room)).scalars().all()
+        return [_room_to_dict(room) for room in rooms]
+
+
 def list_available_rooms(
     capacity: Optional[int] = None,
     location: Optional[str] = None,

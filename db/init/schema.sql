@@ -67,5 +67,5 @@ CREATE INDEX IF NOT EXISTS idx_reviews_room_id
 ON reviews (room_id);
 
 INSERT INTO users (name, username, email, password_hash, role)
-VALUES ('Administrator', 'admin', 'admin@yourdomain.com', 'a72490a7704afc2beddb8f4c114290e4cc62544839fbda00d92d3c0c852e6dd5', 'admin')
+VALUES ('Administrator', 'admin', 'admin@yourdomain.com', '89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8', 'admin')
 ON CONFLICT (username) DO NOTHING;

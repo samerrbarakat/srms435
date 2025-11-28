@@ -1,7 +1,18 @@
 
-import jwt 
+import os
+import jwt
+from typing import List, Optional
 
-def degenerate_jwt(token, secret, algorithms: list = ['HS256']) -> dict:
+
+DEFAULT_ALGORITHMS = ["HS256"]
+
+
+def get_jwt_secret() -> str:
+    """Return the JWT secret, preferring the environment variable if set."""
+    return os.getenv("your_secret_key")
+
+
+def degenerate_jwt(token, secret = "your_secret_key", algorithms: list = ['HS256']) -> dict:
     """Decodes a JWT token.
 
     Args:
@@ -14,4 +25,4 @@ def degenerate_jwt(token, secret, algorithms: list = ['HS256']) -> dict:
 
     Raises jwt.ExpiredSignatureError, jwt.InvalidTokenError on failure.
     """
-    return jwt.decode(token, secret, algorithms=algorithms)  
+    return jwt.decode(token, secret , algorithms=algorithms)     

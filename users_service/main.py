@@ -106,10 +106,10 @@ def create_app():
         if not password or (not username and not email):
             return jsonify({"message": "Missing required fields"}), 400
         
-         # Fetch user by username or email
+        # Fetch user by username or email
         if username:
            result = get_user_by_username_or_email(username=username, email=None)
-        elif email:
+        elif email: 
             result = get_user_by_username_or_email(username=None, email=email)
         else:
             return jsonify({"message": "Username or email is required"}), 400
@@ -121,7 +121,7 @@ def create_app():
         # Here we would verify the credentials against the database.
         if not valid:
             return jsonify({"message": "Invalid username/email or password - nv"}), 401
-        
+
         stored_hash = valid.get("password_hash")
         if not stored_hash or not hasher(password) == stored_hash:
             return jsonify({"message": "Invalid username/email or password"}), 401

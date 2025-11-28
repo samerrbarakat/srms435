@@ -30,6 +30,22 @@ services:
       - "8001:8000"
     networks:
       - srms_net
+  rooms_service:
+    build:
+      context: .
+      dockerfile: rooms_service/Dockerfile
+    container_name: rooms_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://appuser:appsecret@db:5432/srms_db
+      JWT_SECRET: "dev-secret-change-me"
+      PORT: "8000"
+    depends_on:
+      - db
+    ports:
+      - "8002:8000"
+    networks:
+      - srms_net
 
 volumes:
   db_data:
