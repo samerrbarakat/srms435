@@ -8,11 +8,11 @@ services:
       POSTGRES_PASSWORD: appsecret
       POSTGRES_DB: srms_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/init/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-    networks:           
+    networks:
       - srms_net
   users_service:
     build:
@@ -22,7 +22,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://appuser:appsecret@db:5432/srms_db
-      JWT_SECRET: "dev-secret-change-me"
+      JWT_SECRET: "your-secret-key"
       PORT: "8000"
     depends_on:
       - db
@@ -64,8 +64,26 @@ services:
     networks:
       - srms_net
 
+  bookings_service:
+    build:
+      context: .
+      dockerfile: bookings_service/Dockerfile
+    container_name: bookings_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://appuser:appsecret@db:5432/srms_db
+      JWT_SECRET: "your_secret_key"
+      PORT: "8000"
+    depends_on:
+      - db
+    ports:
+      - "8002:8000"
+    networks:
+      - srms_net
+      
 volumes:
   db_data:
+
 
 networks:
   srms_net:

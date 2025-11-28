@@ -39,6 +39,7 @@ def _create_user_and_login(client, *, name, username, email, password="pass123",
 
 
 def test_api_register_user(clear_users_table):
+    """Test that registering a user succeeds with valid input."""
     client = app.test_client()
 
     to_send = {
@@ -59,6 +60,7 @@ def test_api_register_user(clear_users_table):
 
 
 def test_api_login_user(clear_users_table):
+    """Test that logging in a user succeeds with valid credentials."""
     client = app.test_client()
 
     username = "simple_login_user"
@@ -90,6 +92,7 @@ def test_api_login_user(clear_users_table):
 
 
 def test_api_get_user_by_id(clear_users_table):
+    """Test that fetching a user by ID succeeds for an authenticated user."""
     client = app.test_client()
 
     to_send = {
@@ -121,6 +124,7 @@ def test_api_get_user_by_id(clear_users_table):
 
 
 def test_api_update_user(clear_users_table):
+    """Test that updating a user succeeds with valid input."""
     client = app.test_client()
 
     # Create user and log in
@@ -156,6 +160,7 @@ def test_api_update_user(clear_users_table):
 
 
 def test_api_delete_user(clear_users_table):
+    """Test that deleting a user succeeds."""
     client = app.test_client()
 
     # Create user and log in
@@ -185,6 +190,7 @@ def test_api_delete_user(clear_users_table):
 
 
 def test_api_get_all_users_as_admin(clear_users_table):
+    """Test that an admin can fetch all users."""
     client = app.test_client()
 
     # Create an admin user

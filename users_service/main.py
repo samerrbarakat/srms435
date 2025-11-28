@@ -9,7 +9,6 @@ from users_service.models import (
 from users_service.auth import generate_jwt, hasher, degenerate_jwt
 
 """
-
 This is the main entry point for the Users Service.
 It provides endpoints for user registration, login, and fetching user data.
 The routes we will implement are:
@@ -72,8 +71,8 @@ def create_app():
         
         if not name or not username or not email or not password or not role :
             return jsonify({"message": "Missing required fields"}), 400
-        if role == "admin":
-            return jsonify({"message": "Cannot register as admin"}), 400
+        # if role == "admin":
+        #     return jsonify({"message": "Cannot register as admin"}), 400
         hashed_password =  hasher(password)  # Placeholder for actual hashing logic.
         result = insert_user(name, username, email, hashed_password, role)
         if isinstance(result, tuple):
@@ -130,6 +129,47 @@ def create_app():
         token = generate_jwt({"user_id": valid["id"], "role": valid["role"]}, secret="your_secret_key")
         
         return jsonify({"message": "User logged in successfully", "token": token}), 200
+
+    @app.route('/api/v1/users/adminelevate', methods=['POST'])
+    def elevate_user_to_role():
+        """
+        This route allows an admin to elevate a user's role.
+        Expected JSON body:
+        {
+            "user_id": 2,
+            "new_role": "facility_manager"
+        }
+        Only admin users can perform this action.
+        """
+        claims = authenticate_request(request)
+        if not claims or claims.get("role") != "admin":
+            return jsonify({"message": "Admin access required"}), 403
+
+        body = request.get_json()
+        user_id = body.get("user_id")
+        new_role = body.get("new_role")
+
+        if not user_id or not new_role:
+            return jsonify({"message": "Missing required fields"}), 400
+
+        result = update_user(
+            user_id,
+            role=new_role,
+        )
+
+        if isinstance(result, tuple):
+            _, e = result
+            return jsonify(e), 400
+
+        up = result
+        if not up:
+            return jsonify({"message": "User not found"}), 404
+
+        up.pop("password_hash", None)
+        return jsonify(up), 200
+
+
+
 
     @app.route('/api/v1/users', methods=['GET']) #
     def get_users():

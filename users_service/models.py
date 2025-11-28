@@ -9,8 +9,10 @@ import os
 import psycopg2 , psycopg2.extras
 from contextlib import contextmanager
 from users_service.auth import hasher
-DATABASE_URL = os.getenv("DATABASE_URL")
 
+
+# DATABASE_URL = "postgresql://appuser:appsecret@localhost:5433/srms_db_test"  # or srms_db
+DATABASE_URL = os.getenv("DATABASE_URL")
 @contextmanager
 def get_db_connection():
     """
