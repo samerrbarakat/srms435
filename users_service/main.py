@@ -7,7 +7,9 @@ from users_service.models import (
     insert_user, update_user,
 )
 from users_service.auth import generate_jwt, hasher, degenerate_jwt
+from users_service.rate_limiter import rate_limit
 
+from users_service.mfa import create_mfa_challenge, verify_mfa_challenge, MFAError
 """
 This is the main entry point for the Users Service.
 It provides endpoints for user registration, login, and fetching user data.
@@ -40,8 +42,46 @@ def create_app():
     CORS(app)
     # ... define all your routes here, or import from a routes module
     # Return the app instance
- 
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        return jsonify({"status": "Users Service is healthy"}), 200
+    
+    @app.route('/api/v1/users/mfa/start', methods=['POST'])
+    @rate_limit(calls=5, period=60)  # Limit to 5 requests per minute per IP
+    def start_mfa():
+        """
+        Start and MFA challenge for a sensitive action like delete user.
+        Expected: 
+            - Authorization header with Bearer token.
+            - JSON body with "purpose". 
+            Response will have the challenge_id and the code for demo purposes. 
+            In a reat actual system, the code would be sent via email/sms, not returned here. 
+            """
+        claims = authenticate_request(request)
+        if not claims:
+            return jsonify({"message": "Authentication is required for this service!"}), 403
+        user_id  = claims.get("user_id")
+        if not user_id:
+            return jsonify({"message": "Invalid token, no user_id found!"}), 403
+        body = request.get_json()
+        purpose = body.get("purpose")
+        if not purpose:
+            return jsonify({"message": "Purpose is required to start MFA challenge!"}), 400
+        if purpose not in ["delete_user", "delete_booking"]:
+            return jsonify({"message": "Invalid purpose for MFA challenge!"}), 400
+        challenge_id, code = create_mfa_challenge(user_id, purpose,ttl_seconds=300)
+        return jsonify({
+            "message" : "MFA challenge was made successfully. ", 
+            "challenge_id": challenge_id,
+            
+            "code": code , # In real system, do not return code in response.
+            "purpose": purpose,
+            "expires_in_seconds": 300
+        }) , 200
+        
+            
     @app.route('/api/v1/users/register', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def register_user():
         """
         This route takes input user data ( name, username, email, password, role)
@@ -71,8 +111,8 @@ def create_app():
         
         if not name or not username or not email or not password or not role :
             return jsonify({"message": "Missing required fields"}), 400
-        # if role == "admin":
-        #     return jsonify({"message": "Cannot register as admin"}), 400
+        if role != "user":
+            return jsonify({"message": "You need to register as a user, and the admin promotes you"}), 400
         hashed_password =  hasher(password)  # Placeholder for actual hashing logic.
         result = insert_user(name, username, email, hashed_password, role)
         if isinstance(result, tuple):
@@ -88,6 +128,7 @@ def create_app():
         }), 201
 
     @app.route('/api/v1/users/login', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def login_user():
         """
         This route takes input user data ( username, password)
@@ -131,6 +172,7 @@ def create_app():
         return jsonify({"message": "User logged in successfully", "token": token}), 200
 
     @app.route('/api/v1/users/adminelevate', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def elevate_user_to_role():
         """
         This route allows an admin to elevate a user's role.
@@ -171,12 +213,14 @@ def create_app():
 
 
 
-    @app.route('/api/v1/users', methods=['GET']) #
+    @app.route('/api/v1/users', methods=['GET']) 
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def get_users():
         """
         This route fetches all users from the database.
         Returns a list of users.
         we need to validate the role for admin only access.
+        RBAC Rules: Admin and Auditor (read-only) can view all users.
         Expected response:
         [
             {
@@ -189,7 +233,7 @@ def create_app():
         
         # We need to get the role ffrom the JWT token to validate admin access.
         claims = authenticate_request(request)
-        if not claims or claims.get("role") != "admin":
+        if not claims or claims.get("role") not in ["admin","auditor"]:
             return jsonify({"message": "Admin access required"}), 403
         
         # now we need to get the users from the database.
@@ -203,18 +247,20 @@ def create_app():
         return jsonify(users), 200
 
     @app.route('/api/v1/users/<int:user_id>', methods=["GET"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def get_user(user_id):
         """
         Get user info by id.
         Only admin or the user themself can access.
         Never return password hash.
+        RBAC Rules: Admin and Auditor can get any user. Regular User and Facility Manager can only get their own profile.
         """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"message": "Authentication is required for this service!"}), 403
 
         # authorization
-        if not (claims.get("role") == "admin" or str(claims.get("user_id")) == str(user_id)):
+        if not (claims.get("role") in ["admin", "auditor"] or str(claims.get("user_id")) == str(user_id)):
             return jsonify({"message": "You are not authorized to view this user info!"}), 403
 
         # model call (models return value OR (None, err))
@@ -232,11 +278,13 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>', methods=["PUT", "PATCH"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def update_user_info(user_id):
         """
         Admin or user can update own info.
         Non-admin cannot change role.
         Hashing is done inside models.update_user(password=...).
+        RBAC Rules: Admin can update any user. Regular User and Facility Manager can manage their own profile.
         """
         claims = authenticate_request(request)
         if not claims:
@@ -282,10 +330,12 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>', methods=["DELETE"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def delete_user_info(user_id):
         """
         Admin can delete any user.
         A user can delete their own account.
+        We will implement MFA here . 
         """
         claims = authenticate_request(request)
         if not claims:
@@ -296,7 +346,16 @@ def create_app():
 
         if not (is_admin or is_self):
             return jsonify({"message": "You are not authorized to delete this user!"}), 403
-
+        body = request.get_json() or {}
+        challenge_id = body.get("challenge_id")
+        code = body.get("code")
+        if not challenge_id or not code:
+            return jsonify({"message": "MFA challenge_id and code are required to delete user!"}), 400
+        try:
+            verify_mfa_challenge(challenge_id, code, claims.get("user_id"), expected_purpose="delete_user")
+        except MFAError as e:
+            return jsonify({"message": f"MFA verification failed: {str(e)}"}), 403
+        
         result = delete_user(user_id)
         if isinstance(result, tuple):
             _, e = result
@@ -310,15 +369,17 @@ def create_app():
 
 
     @app.route('/api/v1/users/<int:user_id>/bookings', methods=["GET"])
+    @rate_limit(calls=3, period=30)  # Limit to 5 requests per 30 seconds per IP
     def get_user_bookings(user_id):
         """
         Admin or user can get their own bookings.
+        RBAC Rules: Admin can view any user's booking history. Regular User and Facility Manager can view their own. Auditor should have read access.
         """
         claims = authenticate_request(request)
         if not claims:
             return jsonify({"message": "Authentication is required for this service!"}), 403
 
-        if not (claims.get("role") == "admin" or str(claims.get("user_id")) == str(user_id)):
+        if not (claims.get("role") in ["admin", "auditor"] or str(claims.get("user_id")) == str(user_id)):
             return jsonify({"message": "You are not authorized to view these bookings!"}), 403
 
         result = get_bookings_by_user_id(user_id)

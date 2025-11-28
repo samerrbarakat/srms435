@@ -4,6 +4,7 @@ In this module, we create and configure the Flask application for the bookings s
 Here's the list for all the needed API routes: 
 
 """
+from bookings_service.rate_limiter import rate_limit
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -22,6 +23,11 @@ from bookings_service.models import (
     db_hard_delete_booking, 
     db_get_bookings_by_room,
 )
+
+from bookings_service.circuit_breaker import  ServiceUnavailable
+from bookings_service.circuit_breaker_modules import fetch_user
+
+
 def authenticate_request(request):
     """Extract user info from JWT if present."""
     # You can improve by using flask_jwt_extended or manual verification
@@ -88,6 +94,7 @@ def create_app():
         return   jsonify({"message" : "Booking creation suucceeeded! "}), 201
     
     @app.route('/api/v1/bookings/myhistory', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_booking_history():
         """
         Return only the bookings of the authenticated user (satisfies “user’s booking history”).
@@ -111,6 +118,7 @@ def create_app():
         return jsonify(bookings), 200
 
     @app.route('/api/v1/bookings/user/<int:user_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_user_bookings(user_id):
         """
         View bookings for a given user id (for admin, facility manager, auditor; user themself can also use it).
@@ -124,6 +132,8 @@ def create_app():
         - Fetch bookings for user.
         - Return bookings.
         
+        We also here use the circuit breaker protected fetch_user function to verify user existence.
+        
         """
         claims = authenticate_request(request)
         if not claims : 
@@ -132,9 +142,28 @@ def create_app():
         user_id_claims = claims.get("user_id")
         
         user_id = request.view_args['user_id']
-        if user_id !=user_id_claims  and role== "user" : 
+        if user_id != user_id_claims and role not in ["admin", "facility_manager", "auditor"]:
             return jsonify({"message": "you can only see your won bookings unless previledged roles"}) , 403
         
+        # Verify user existence via Users service
+        token = request.headers.get('Authorization', '').split(' ')[1]  # Extract token
+        try:
+            user_info = fetch_user(user_id,token)
+            print(user_info)
+        except ServiceUnavailable as e:
+            # Circuit is OPEN → fail fast with 503
+            return jsonify({
+                "message": "Users service temporarily unavailable, please try again later.",
+                "details": str(e),
+            }), 503
+        except Exception:
+            # Underlying HTTP problem, but breaker may still be CLOSED/HALF_OPEN
+            print(Exception)
+            return jsonify({
+                "message": "Could not validate user with Users service at the moment.",
+            }), 502
+            if not user_info:
+                return jsonify({"message": "User does not exist"}), 404
         bookings = db_get_bookings_by_user(user_id)
         if bookings is None : 
             return jsonify({"message" : "No bookings found"}), 404 
@@ -142,6 +171,7 @@ def create_app():
         return jsonify(bookings), 200
     
     @app.route('/api/v1/bookings' ,methods =['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_all_bookings():
         """
         View all bookings (for admin, facility manager, auditor).
@@ -160,8 +190,8 @@ def create_app():
         user_id= claims.get("user_id")
         role = claims.get("role")
         
-        if role =="user" :
-            return jsonify({"message": "Users are not previleged to view all bookings"}), 403
+        if role not in ["admin", "facility_manager", "auditor"]:
+            return jsonify({"message": "Not privileged to view all bookings"}), 403
           
         
         all_bookings = db_get_all_bookings()
@@ -169,6 +199,7 @@ def create_app():
     
     
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_booking(booking_id):
         """
         View a booking by its ID.
@@ -201,6 +232,7 @@ def create_app():
         return jsonify(booking), 200
     
     @app.route('/api/v1/bookings/<int:booking_id>', methods=['PATCH'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def update_booking(booking_id):
         """
         Update booking details (room_id, start_time, end_time).
@@ -237,8 +269,8 @@ def create_app():
             return jsonify({"message":" Booking doesnt exist! "}), 404 
         if booking_id_exists["status"] == "cancelled":
             return jsonify({"message" : "Cannot update a cancelled booking"}), 400
-        if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user":
-            return jsonify({"message" : "You can only update your own booking"}),403
+        if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user" or claims.get("role") not in ["admin", "facility_manager"]:
+            return jsonify({"message" : "Not authorized to update this booking"}),403
         if booking_id_exists["start_time"] <= now():
              return jsonify({"message" : "cbooking already started or finished "}), 400
         if not db_check_room_exists(room_id):
@@ -258,11 +290,13 @@ def create_app():
         return jsonify(update), 200
         
     @app.route('/api/v1/bookings/<int:booking_id>/cancel', methods=['POST'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def soft_cancel_booking(booking_id):
         """
         Soft cancel a booking by its ID.
         Takes input: booking_id in URL.
         Returns: confirmation message.
+        RBAC Rules: A user can cancel their own booking. Admin and Facility Manager can cancel any booking.
         Checks: user authentication, authorization, booking status.
         Flow:
         - Authenticate user.
@@ -283,7 +317,7 @@ def create_app():
         booking = db_get_booking_by_id(booking_id)
         if not booking :
             return jsonify({"message" : "This booking does not exist"}),404 
-        if booking["user_id"] !=user_id and role=="user":
+        if booking["user_id"] !=user_id and role=="user" and role not in ["admin", "facility_manager"]:
             return jsonify({"message" : "you can cancel only ur own booking"}),403
         if booking["status"] =="cancelled":
             return jsonify({"message" : "Booking already was canceled"}), 400
@@ -297,6 +331,7 @@ def create_app():
         return jsonify({"message": f"Booking {booking_id} cancelled"}), 200
     
     @app.route('/api/v1/bookings/<int:booking_id>/hard', methods=['DELETE'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def hard_cancel_booking(booking_id):
         """
         Hard delete a booking by its ID (admin only).
@@ -329,6 +364,7 @@ def create_app():
         return jsonify({"message": "Booking permanently deleted"}), 200
         
     @app.route('/api/v1/bookings/availability', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def check_availablity():
         """
         Check whether a room is free in a given timeslot (satisfies “Checking room availability (based on time and date)” requirement).   
@@ -366,12 +402,14 @@ def create_app():
         return jsonify({"room_available": room_available}), 200
 
     @app.route('/api/v1/bookings/room/<int:room_id>', methods=['GET'])
+    @rate_limit(calls=3, period=30)  # Limit to 3 requests per 30 seconds per IP
     def get_bookings_for_room(room_id):
         """
         View bookings for a given room id (for admin, facility manager, auditor).
         Takes input: none.
         Returns: list of bookings.
         Checks: user authentication and authorization.
+        RBAC Rules: Admin, Facility Manager, and Auditor should be able to do this.
         Flow:
         - Authenticate user.
         - Authorize user (admin, facility manager, auditor).
@@ -385,8 +423,8 @@ def create_app():
             return jsonify({"message" : "Seems to be unautharized"}), 401 
         user_id= claims.get("user_id")
         role = claims.get("role")
-        if role =="user":
-            return jsonify({"message" : "Users are not allowed to view this"}), 403
+        if role not in ["admin", "facility_manager", "auditor"]:
+            return jsonify({"message" : "Not privileged to view all bookings"}), 403
         
         bookings = db_get_bookings_by_room(room_id)
         if bookings is None : 
