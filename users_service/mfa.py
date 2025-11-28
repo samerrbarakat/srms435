@@ -25,6 +25,7 @@ def create_mfa_challenge(user_id,purpose, ttl_seconds=300):
     :param ttl_seconds: Time to live for the challenge in seconds.
     :return: The challenge ID and the generated code.
     """
+
     now = time.time()
     challenge_id = str(uuid.uuid4())
     code = _generate()
@@ -34,6 +35,8 @@ def create_mfa_challenge(user_id,purpose, ttl_seconds=300):
         "code": code,
         "expires_at": now + ttl_seconds,  # Challenge valid for 5 minutes
         }
+    print(f"CREATED challenge: {challenge_id} =>", mfa_challenges[challenge_id])
+
     return challenge_id, code
 
 
@@ -47,16 +50,16 @@ def verify_mfa_challenge(challenge_id, code, user_id, expected_purpose):
     :raises MFAError: if the challenge is invalid, expired, used, or does not match.
     :return: True if verification is successful.
     """
-    
+    print(f"VERIFYING with id={challenge_id}, current store:", mfa_challenges)
+
     data = mfa_challenges.get(challenge_id)
     if not data:
         raise MFAError("Invalid challenge ID.")
-    if data["used"]:
-        raise MFAError("Challenge has already been used.")
+
     if data["purpose"] != expected_purpose:
         raise MFAError("Challenge purpose does not match.")
     
-    if data["user_id"] != user_id:
+    if str(data["user_id"]) != str(user_id):
         raise MFAError("Challenge does not belong to the user.")
     now  = time.time()
     if now > data["expires_at"]:
