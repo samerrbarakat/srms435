@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from rooms_service.auth import degenerate_jwt
 from rooms_service.helperSQL import create_room, update_room, delete_room, list_available_rooms, get_room_status, list_all_rooms
+from rooms_service.recommendations import recommend_rooms
 from rooms_service.errors import ApiError, register_error_handlers
 
 ROOM_MANAGERS = {"admin", "facility_manager"}
@@ -157,6 +158,22 @@ def create_app():
 
         rooms = list_available_rooms(capacity=capacity, location=location, equipment=equipment)
         return jsonify(rooms)
+
+    @app.route("/api/v1/rooms/recommendations", methods=["GET"])
+    def recommend_rooms_route():
+        claims = authenticate_request(request)
+        if not claims:
+            raise ApiError(401, "authentication required", "unauthorized")
+
+        capacity_param = request.args.get("capacity")
+        location = request.args.get("location")
+        equipment_param = request.args.get("equipment")
+
+        capacity = _parse_int(capacity_param)
+        equipment = _parse_equipment_param(equipment_param)
+
+        rooms = recommend_rooms(capacity=capacity, location=location, equipment=equipment)
+        return jsonify(rooms), 200
 
 
     @app.route("/api/v1/rooms/<int:room_id>/status", methods=["GET"])
