@@ -40,7 +40,6 @@ def client(app):
     return app.test_client()
 
 
-# ---------- /api/v1/bookings (POST) ----------
 
 def test_create_booking_requires_auth(client):
     """Test that creating a booking requires authentication."""

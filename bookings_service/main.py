@@ -12,7 +12,7 @@ from datetime import datetime
 from bookings_service.auth import degenerate_jwt
 from bookings_service.models import (
     db_check_room_exists,
-    db_check_room_availability,
+    db_check_room_availability, 
     db_create_booking,
     db_get_all_bookings,
     db_get_booking_history,
@@ -23,6 +23,13 @@ from bookings_service.models import (
     db_hard_delete_booking, 
     db_get_bookings_by_room,
 )
+from datetime import datetime, timezone
+
+def now():
+    """Return current UTC time. Can be mocked in tests."""
+    return datetime.now(timezone.utc)
+
+from datetime import datetime
 
 from bookings_service.circuit_breaker import  ServiceUnavailable
 from bookings_service.circuit_breaker_modules import fetch_user
@@ -270,7 +277,7 @@ def create_app():
             return jsonify({"message" : "Cannot update a cancelled booking"}), 400
         if booking_id_exists["user_id"]!= claims.get("user_id") and claims.get("role") =="user" or claims.get("role") not in ["admin", "facility_manager"]:
             return jsonify({"message" : "Not authorized to update this booking"}),403
-        if booking_id_exists["start_time"] <= datetime.now():
+        if booking_id_exists["start_time"] <= now():
              return jsonify({"message" : "cbooking already started or finished "}), 400
         if not db_check_room_exists(room_id):
             return jsonify(
@@ -320,7 +327,7 @@ def create_app():
             return jsonify({"message" : "you can cancel only ur own booking"}),403
         if booking["status"] =="cancelled":
             return jsonify({"message" : "Booking already was canceled"}), 400
-        if booking["start_time"] <= datetime.now(): 
+        if booking["start_time"] <= now(): 
             return jsonify({"message" : "session alreasy started or finished"}), 400
         
         cancel = db_soft_cancel_booking(booking_id)
